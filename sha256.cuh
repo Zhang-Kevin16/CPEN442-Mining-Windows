@@ -16,4 +16,4 @@
 
 
 /**************************** DATA TYPES ****************************/
-long long cuda_mine_coin(const unsigned char* hash_start, const unsigned char* id, size_t hash_start_size, size_t id_size, unsigned char difficulty);
+long long cuda_mine_coin(const unsigned char* hash_start, const unsigned char* id, size_t hash_start_size, size_t id_size, unsigned char difficulty, int* latest_coin_timestamp);

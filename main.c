@@ -10,7 +10,8 @@
 #include "mining.h"
 #include <cjson/cJSON.h>
 #include <sys/types.h>
-
+#include <windows.h>
+#include <tinycthread.h>
 
 #pragma comment(lib, "Ws2_32.Lib")
 #pragma comment(lib, "Crypt32.Lib")
@@ -25,6 +26,14 @@
 #define LAST_COIN 0
 #define DIFFICULTY 1
 #define VERIFY 2
+#define POLL_INTERVAL_MS 5000
+
+int latest_coin_timestamp = 0;
+
+struct thread_context_t {
+    unsigned char** proxies;
+    int proxy_count;
+};
 
 size_t write_callback(char* ptr, size_t size, size_t nmemb, response_t* response) {
     if(response->read_bytes + nmemb >= MAX_RESPONSE_LEN)
@@ -87,31 +96,31 @@ void modify_url(CURL* handler, size_t path_len, const unsigned char* path) {
 // Initiailze parameters to retrieve mining info.
 void set_curl_opts(CURL** curl_handlers, response_t responses[3]) {
 
-    curl_easy_setopt(curl_handlers[0], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/last_coin");
-    curl_easy_setopt(curl_handlers[0], CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(curl_handlers[0], CURLOPT_POSTFIELDS, "");
-    curl_easy_setopt(curl_handlers[0], CURLOPT_WRITEDATA, &responses[LAST_COIN]);
-    curl_easy_setopt(curl_handlers[0], CURLOPT_FAILONERROR, 1);
-    curl_easy_setopt(curl_handlers[0], CURLOPT_HTTPPROXYTUNNEL, 1L);
-    curl_easy_setopt(curl_handlers[0], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
-    curl_easy_setopt(curl_handlers[0], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
+    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/last_coin");
+    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_POSTFIELDS, "");
+    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_WRITEDATA, &responses[LAST_COIN]);
+    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_FAILONERROR, 1);
+    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_HTTPPROXYTUNNEL, 1L);
+    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
 
-    curl_easy_setopt(curl_handlers[1], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/difficulty");
-    curl_easy_setopt(curl_handlers[1], CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(curl_handlers[1], CURLOPT_POSTFIELDS, "");
-    curl_easy_setopt(curl_handlers[1], CURLOPT_WRITEDATA, &responses[DIFFICULTY]);
-    curl_easy_setopt(curl_handlers[1], CURLOPT_FAILONERROR, 1);
-    curl_easy_setopt(curl_handlers[1], CURLOPT_HTTPPROXYTUNNEL, 1L);
-    curl_easy_setopt(curl_handlers[1], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
-    curl_easy_setopt(curl_handlers[1], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
+    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/difficulty");
+    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_POSTFIELDS, "");
+    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_WRITEDATA, &responses[DIFFICULTY]);
+    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_FAILONERROR, 1);
+    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_HTTPPROXYTUNNEL, 1L);
+    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
 
-    curl_easy_setopt(curl_handlers[2], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/verify_example_coin");
-    curl_easy_setopt(curl_handlers[2], CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(curl_handlers[2], CURLOPT_WRITEDATA, &responses[VERIFY]);
-    curl_easy_setopt(curl_handlers[2], CURLOPT_FAILONERROR, 1);
-    curl_easy_setopt(curl_handlers[2], CURLOPT_HTTPPROXYTUNNEL, 1L);
-    curl_easy_setopt(curl_handlers[2], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
-    curl_easy_setopt(curl_handlers[2], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
+    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/verify_example_coin");
+    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_WRITEDATA, &responses[VERIFY]);
+    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_FAILONERROR, 1);
+    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_HTTPPROXYTUNNEL, 1L);
+    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
 }
 
 int get_previous_hash_and_difficulty(CURLM* multi_curl, coin_info_t* coin_info, response_t responses[2]) {
@@ -186,6 +195,65 @@ end:
     return 0;
 }
 
+void poll_coin(struct thread_context_t* context) {
+    coin_info_t coin_info;
+    int proxy_count = context->proxy_count;
+    unsigned char** proxies = context->proxies;
+    // Three easy handlers. First one is to last_coin. Second is to difficulty. Third is to verify.
+    CURL* curl_handlers[3];
+    for (int i = 0; i < 3; i++) {
+        curl_handlers[i] = curl_easy_init();
+        if (!curl_handlers[i]) {
+            printf("Couldn't initialize CURL handler. Exiting.\n");
+            exit(0);
+        }
+    }
+    
+    response_t responses[3];
+    for (int i = 0; i < 3; i++) {
+        responses[i].data = malloc(MAX_RESPONSE_LEN);
+        responses[i].read_bytes = 0;
+        responses[i].handler = curl_handlers[i];
+    }
+    set_curl_opts(curl_handlers, responses);
+
+    CURLM* multi_handle = curl_multi_init();
+    curl_multi_add_handle(multi_handle, curl_handlers[LAST_COIN]);
+    curl_multi_add_handle(multi_handle, curl_handlers[DIFFICULTY]);
+
+    // Set proxy if available.
+    while (1) {
+        printf("Polling\n");
+        int proxy_idx = rand() % proxy_count;
+        if (proxy_count) {
+
+            for (int i = 0; i < 3; i++) {
+                curl_easy_setopt(curl_handlers[i], CURLOPT_PROXY, proxies[proxy_idx]);
+            }
+        }
+
+        if (get_previous_hash_and_difficulty(multi_handle, &coin_info, responses)) {
+            goto cleanup;
+        }
+
+        if (latest_coin_timestamp < coin_info.coin_id_timestamp)
+            latest_coin_timestamp = coin_info.coin_id_timestamp;
+
+    cleanup:
+        // Rest the read_bytes of responses so it can be used again next loop.
+        for (int i = 0; i < 3; i++) {
+            responses[i].read_bytes = 0;
+        }
+
+        //Reset the multi handler so it can be used again
+        curl_multi_remove_handle(multi_handle, curl_handlers[LAST_COIN]);
+        curl_multi_remove_handle(multi_handle, curl_handlers[DIFFICULTY]);
+        curl_multi_add_handle(multi_handle, curl_handlers[LAST_COIN]);
+        curl_multi_add_handle(multi_handle, curl_handlers[DIFFICULTY]);
+        Sleep(POLL_INTERVAL_MS);
+    };
+}
+
 
 int main() {
     coin_info_t coin_info;
@@ -200,7 +268,6 @@ int main() {
 
     srand(time(NULL));
     
-
     // Three easy handlers. First one is to last_coin. Second is to difficulty. Third is to verify.
     CURL* curl_handlers[3];
     for (int i = 0; i < 3; i++) {
@@ -217,15 +284,11 @@ int main() {
         responses[i].read_bytes = 0;
         responses[i].handler = curl_handlers[i];
     }
-
-    struct curl_slist* list = NULL;
-    //list = curl_slist_append(list, "Content-Length: 0");
-
-    set_curl_opts(curl_handlers, responses, list);
+    set_curl_opts(curl_handlers, responses);
 
     CURLM* multi_handle = curl_multi_init();
-    curl_multi_add_handle(multi_handle, curl_handlers[0]);
-    curl_multi_add_handle(multi_handle, curl_handlers[1]);
+    curl_multi_add_handle(multi_handle, curl_handlers[LAST_COIN]);
+    curl_multi_add_handle(multi_handle, curl_handlers[DIFFICULTY]);
 
     memcpy(hash_start, cpen, CPEN_LEN);
 
@@ -245,7 +308,12 @@ int main() {
         }
     }
 
-    
+    struct thread_context_t* thread_context = malloc(sizeof(struct thread_context_t));
+    thread_context->proxies = proxies;
+    thread_context->proxy_count = proxy_count;
+    thrd_t t;
+    thrd_create(&t, poll_coin, thread_context);
+
     while (1) {
 
         // Set proxy if available.
@@ -261,9 +329,12 @@ int main() {
             break;
             goto cleanup;
         }
+
+        if(latest_coin_timestamp < coin_info.coin_id_timestamp)
+            latest_coin_timestamp = coin_info.coin_id_timestamp;
         
         memcpy(hash_start + CPEN_LEN, coin_info.coin_id, PREVIOUS_HASH_LEN);
-        coin_blob = cuda_mine_coin(hash_start, id, CPEN_LEN + PREVIOUS_HASH_LEN, ID_LEN, coin_info.difficulty);
+        coin_blob = cuda_mine_coin(hash_start, id, CPEN_LEN + PREVIOUS_HASH_LEN, ID_LEN, coin_info.difficulty, &latest_coin_timestamp);
         if (coin_blob < 0)
             goto cleanup;
 
@@ -277,7 +348,7 @@ int main() {
         printf("Previous hash:%s\tFound base blob: %s\tNumber: %lld\tDifficulty: %d\tURL Index: %d\n", coin_info.coin_id, base64_coin_blob, coin_blob, coin_info.difficulty, proxy_idx);
 
         // Send the coin blob
-        post_coin(curl_handlers[2], base64_coin_blob, id, &responses[VERIFY]);
+        post_coin(curl_handlers[VERIFY], base64_coin_blob, id, &responses[VERIFY]);
 
 cleanup:
         // Rest the read_bytes of responses so it can be used again next loop.
@@ -286,20 +357,19 @@ cleanup:
         }
 
         //Reset the multi handler so it can be used again
-        curl_multi_remove_handle(multi_handle, curl_handlers[0]);
-        curl_multi_remove_handle(multi_handle, curl_handlers[1]);
-        curl_multi_add_handle(multi_handle, curl_handlers[0]);
-        curl_multi_add_handle(multi_handle, curl_handlers[1]);
+        curl_multi_remove_handle(multi_handle, curl_handlers[LAST_COIN]);
+        curl_multi_remove_handle(multi_handle, curl_handlers[DIFFICULTY]);
+        curl_multi_add_handle(multi_handle, curl_handlers[LAST_COIN]);
+        curl_multi_add_handle(multi_handle, curl_handlers[DIFFICULTY]);
 
     }
 
 
     free(hash_start);
     free(proxies);
-    curl_multi_remove_handle(multi_handle, curl_handlers[0]);
-    curl_multi_remove_handle(multi_handle, curl_handlers[1]);
+    curl_multi_remove_handle(multi_handle, curl_handlers[LAST_COIN]);
+    curl_multi_remove_handle(multi_handle, curl_handlers[DIFFICULTY]);
     curl_multi_cleanup(multi_handle);
-    curl_slist_free_all(list);
 
     for (int i = 0; i < 3; i++) {
         curl_easy_cleanup(curl_handlers[i]);

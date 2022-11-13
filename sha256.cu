@@ -261,13 +261,14 @@ __global__ void kernel_mine_coin_child(CUDA_SHA256_CTX* hash_start, unsigned cha
 }
 
 extern "C" {
-	long long cuda_mine_coin(const unsigned char* hash_start, const unsigned char* id, size_t hash_start_size, size_t id_size, unsigned char difficulty) {
+	long long cuda_mine_coin(const unsigned char* hash_start, const unsigned char* id, size_t hash_start_size, size_t id_size, unsigned char difficulty, int* latest_timestamp) {
 		unsigned char* cuda_id;
 		CUDA_SHA256_CTX* cuda_sha256_ctx;
 
 		long long* cuda_result;
 		long long host_result = -1;
 		long long ret = -1;
+		int timestamp = *latest_timestamp;
 
 		CUDA_SHA256_CTX ctx;
 		cuda_sha256_init(&ctx);
@@ -300,6 +301,14 @@ extern "C" {
 				ret = host_result;
 				goto end;
 			}
+
+			// Check if coin is stale;
+			if (*latest_timestamp > timestamp) {
+				printf("Coin is stale. Ending iteration\n");
+				ret = -1;
+				goto end;
+			}
+
 		}
 
 	end:
