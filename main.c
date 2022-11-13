@@ -33,6 +33,7 @@ int latest_coin_timestamp = 0;
 struct thread_context_t {
     unsigned char** proxies;
     int proxy_count;
+    char* verify_url;
 };
 
 size_t write_callback(char* ptr, size_t size, size_t nmemb, response_t* response) {
@@ -94,33 +95,36 @@ void modify_url(CURL* handler, size_t path_len, const unsigned char* path) {
 }
 
 // Initiailze parameters to retrieve mining info.
-void set_curl_opts(CURL** curl_handlers, response_t responses[3]) {
+void set_curl_opts(CURL** curl_handlers, response_t responses[3], char* verify_url, int use_proxy) {
 
     curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/last_coin");
     curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_POSTFIELDS, "");
+    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_POSTFIELDS, "1");
     curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_WRITEDATA, &responses[LAST_COIN]);
     curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_FAILONERROR, 1);
-    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_HTTPPROXYTUNNEL, 1L);
-    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
-    curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
+
 
     curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/difficulty");
     curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_WRITEFUNCTION, write_callback);
-    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_POSTFIELDS, "");
+    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_POSTFIELDS, "1");
     curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_WRITEDATA, &responses[DIFFICULTY]);
     curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_FAILONERROR, 1);
-    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_HTTPPROXYTUNNEL, 1L);
-    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
-    curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
+    
 
-    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/verify_example_coin");
+    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_URL, verify_url);
     curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_WRITEDATA, &responses[VERIFY]);
     curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_FAILONERROR, 1);
-    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_HTTPPROXYTUNNEL, 1L);
-    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
-    curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
+    
+
+    if (use_proxy) {
+        curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+        curl_easy_setopt(curl_handlers[LAST_COIN], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
+        curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+        curl_easy_setopt(curl_handlers[DIFFICULTY], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
+        curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+        curl_easy_setopt(curl_handlers[VERIFY], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
+    }
 }
 
 int get_previous_hash_and_difficulty(CURLM* multi_curl, coin_info_t* coin_info, response_t responses[2]) {
@@ -215,7 +219,7 @@ void poll_coin(struct thread_context_t* context) {
         responses[i].read_bytes = 0;
         responses[i].handler = curl_handlers[i];
     }
-    set_curl_opts(curl_handlers, responses);
+    set_curl_opts(curl_handlers, responses, context->verify_url, proxy_count);
 
     CURLM* multi_handle = curl_multi_init();
     curl_multi_add_handle(multi_handle, curl_handlers[LAST_COIN]);
@@ -224,9 +228,9 @@ void poll_coin(struct thread_context_t* context) {
     // Set proxy if available.
     while (1) {
         printf("Polling\n");
-        int proxy_idx = rand() % proxy_count;
+        int proxy_idx;
         if (proxy_count) {
-
+            proxy_idx = rand() % proxy_count;
             for (int i = 0; i < 3; i++) {
                 curl_easy_setopt(curl_handlers[i], CURLOPT_PROXY, proxies[proxy_idx]);
             }
@@ -255,7 +259,7 @@ void poll_coin(struct thread_context_t* context) {
 }
 
 
-int main() {
+int main(int argc, char** argv) {
     coin_info_t coin_info;
     const unsigned char cpen[] = "CPEN 442 Coin2022";
     unsigned char previous_hash[SHA256_HASH_SIZE*2] = "a9c1ae3f4fc29d0be9113a42090a5ef9fdef93f5ec4777a008873972e60bb532";
@@ -265,6 +269,11 @@ int main() {
     unsigned char* base64_ptr;
     unsigned char* hash_start = (unsigned char*)malloc(CPEN_LEN + PREVIOUS_HASH_LEN);
     unsigned char** proxies = malloc(sizeof(unsigned char*) * 10);
+
+    if (argc < 2) {
+        printf("Usage: ./Mining.exe [URL for verifying coins] [OPTIONAL path of proxy file]");
+        return 0;
+    }
 
     srand(time(NULL));
     
@@ -284,8 +293,7 @@ int main() {
         responses[i].read_bytes = 0;
         responses[i].handler = curl_handlers[i];
     }
-    set_curl_opts(curl_handlers, responses);
-
+    
     CURLM* multi_handle = curl_multi_init();
     curl_multi_add_handle(multi_handle, curl_handlers[LAST_COIN]);
     curl_multi_add_handle(multi_handle, curl_handlers[DIFFICULTY]);
@@ -294,39 +302,45 @@ int main() {
 
     // Read proxy files
     int proxy_count = 0;
-    FILE* fp = fopen("proxy_list.txt", "r");
-    if (fp) {
-        size_t line_len;
-        unsigned char* line = malloc(50);
-        
-        while (fgets(line, 50, fp)) {
-            proxies[proxy_count] = malloc(50);
-            strncpy(proxies[proxy_count], line, 50);
-            proxies[proxy_count][strcspn(proxies[proxy_count], "\n")] = 0;
-            proxy_count++;
-            proxies = realloc(proxies, (proxy_count+1)*sizeof(unsigned char*));
+    
+    if (argc > 2) {
+        FILE* fp = fopen(argv[2], "r");
+        if (fp) {
+            size_t line_len;
+            unsigned char* line = malloc(50);
+
+            while (fgets(line, 50, fp)) {
+                proxies[proxy_count] = malloc(50);
+                strncpy(proxies[proxy_count], line, 50);
+                proxies[proxy_count][strcspn(proxies[proxy_count], "\n")] = 0;
+                proxy_count++;
+                proxies = realloc(proxies, (proxy_count + 1) * sizeof(unsigned char*));
+            }
+            fclose(fp);
         }
     }
+
+    set_curl_opts(curl_handlers, responses, argv[1], proxy_count);
 
     struct thread_context_t* thread_context = malloc(sizeof(struct thread_context_t));
     thread_context->proxies = proxies;
     thread_context->proxy_count = proxy_count;
+    thread_context->verify_url = argv[1];
     thrd_t t;
     thrd_create(&t, poll_coin, thread_context);
 
     while (1) {
 
         // Set proxy if available.
-        int proxy_idx = rand() % proxy_count;
+        int proxy_idx;
         if (proxy_count) {
-            
+            proxy_idx = rand() % proxy_count;
             for (int i = 0; i < 3; i++) {
                 curl_easy_setopt(curl_handlers[i], CURLOPT_PROXY, proxies[proxy_idx]);
             }
         }
 
         if (get_previous_hash_and_difficulty(multi_handle, &coin_info, responses)) {
-            break;
             goto cleanup;
         }
 
