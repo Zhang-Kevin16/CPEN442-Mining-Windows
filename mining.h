@@ -1,5 +1,5 @@
 #pragma once
-
+#include <curl/curl.h>
 
 typedef struct coin_info_t {
 	unsigned char coin_id[65];
@@ -11,4 +11,5 @@ typedef struct coin_info_t {
 typedef struct response_t {
 	unsigned char* data;
 	size_t read_bytes;
+	CURL* handler;
 } response_t;
