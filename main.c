@@ -93,6 +93,8 @@ void set_curl_opts(CURL** curl_handlers, response_t responses[3]) {
     curl_easy_setopt(curl_handlers[0], CURLOPT_WRITEDATA, &responses[LAST_COIN]);
     curl_easy_setopt(curl_handlers[0], CURLOPT_FAILONERROR, 1);
     curl_easy_setopt(curl_handlers[0], CURLOPT_HTTPPROXYTUNNEL, 1L);
+    curl_easy_setopt(curl_handlers[0], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+    curl_easy_setopt(curl_handlers[0], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
 
     curl_easy_setopt(curl_handlers[1], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/difficulty");
     curl_easy_setopt(curl_handlers[1], CURLOPT_WRITEFUNCTION, write_callback);
@@ -100,12 +102,16 @@ void set_curl_opts(CURL** curl_handlers, response_t responses[3]) {
     curl_easy_setopt(curl_handlers[1], CURLOPT_WRITEDATA, &responses[DIFFICULTY]);
     curl_easy_setopt(curl_handlers[1], CURLOPT_FAILONERROR, 1);
     curl_easy_setopt(curl_handlers[1], CURLOPT_HTTPPROXYTUNNEL, 1L);
+    curl_easy_setopt(curl_handlers[1], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+    curl_easy_setopt(curl_handlers[1], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
 
     curl_easy_setopt(curl_handlers[2], CURLOPT_URL, "http://cpen442coin.ece.ubc.ca/verify_example_coin");
     curl_easy_setopt(curl_handlers[2], CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl_handlers[2], CURLOPT_WRITEDATA, &responses[VERIFY]);
     curl_easy_setopt(curl_handlers[2], CURLOPT_FAILONERROR, 1);
     curl_easy_setopt(curl_handlers[2], CURLOPT_HTTPPROXYTUNNEL, 1L);
+    curl_easy_setopt(curl_handlers[2], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+    curl_easy_setopt(curl_handlers[2], CURLOPT_PROXYUSERPWD, "stvzuyjc:wwcqv33hfvug");
 }
 
 int get_previous_hash_and_difficulty(CURLM* multi_curl, coin_info_t* coin_info, response_t responses[2]) {
