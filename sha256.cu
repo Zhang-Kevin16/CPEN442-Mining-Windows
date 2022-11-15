@@ -261,14 +261,15 @@ __global__ void kernel_mine_coin_child(CUDA_SHA256_CTX* hash_start, unsigned cha
 }
 
 extern "C" {
-	long long cuda_mine_coin(const unsigned char* hash_start, const unsigned char* id, size_t hash_start_size, size_t id_size, unsigned char difficulty, int* latest_timestamp) {
+	long long cuda_mine_coin(const unsigned char* hash_start, const unsigned char* id, size_t hash_start_size, size_t id_size, unsigned char* difficulty, int* latest_timestamp) {
 		unsigned char* cuda_id;
 		CUDA_SHA256_CTX* cuda_sha256_ctx;
 
 		long long* cuda_result;
 		long long host_result = -1;
 		long long ret = -1;
-		int timestamp = *latest_timestamp;
+		int coin_timestamp = *latest_timestamp;
+
 
 		CUDA_SHA256_CTX ctx;
 		cuda_sha256_init(&ctx);
@@ -293,7 +294,7 @@ extern "C" {
 
 			// Run kernel to compute hashes
 			CHECK_ERROR(cudaMemcpy(cuda_result, &host_result, sizeof(long long), cudaMemcpyHostToDevice));
-			kernel_mine_coin_child <<<NUM_BLOCKS, NUM_THREADS>>> (cuda_sha256_ctx, cuda_id, cuda_result, start_num, difficulty);
+			kernel_mine_coin_child <<<NUM_BLOCKS, NUM_THREADS>>> (cuda_sha256_ctx, cuda_id, cuda_result, start_num, *difficulty);
 			CHECK_ERROR(cudaMemcpy(&host_result, cuda_result, sizeof(long long), cudaMemcpyDeviceToHost));
 
 			// Check if valid hash was found
@@ -303,14 +304,13 @@ extern "C" {
 			}
 
 			// Check if coin is stale;
-			if (*latest_timestamp > timestamp) {
+			if (*latest_timestamp > coin_timestamp) {
 #ifdef DEBUG
 				printf("Coin is stale. Ending iteration\n");
 #endif
 				ret = -1;
 				goto end;
 			}
-
 		}
 
 	end:

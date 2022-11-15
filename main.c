@@ -29,6 +29,8 @@
 #define POLL_INTERVAL_MS 5000
 
 int latest_coin_timestamp = 0;
+int latest_difficulty_timestamp = 0;
+unsigned char latest_difficulty = 0;
 
 struct thread_context_t {
     unsigned char** proxies;
@@ -240,8 +242,14 @@ void poll_coin(struct thread_context_t* context) {
             goto cleanup;
         }
 
-        if (latest_coin_timestamp < coin_info.coin_id_timestamp)
+        if (latest_coin_timestamp < coin_info.coin_id_timestamp) {
             latest_coin_timestamp = coin_info.coin_id_timestamp;
+        }
+
+        if (latest_difficulty_timestamp < coin_info.difficulty_timestamp) {
+            latest_difficulty_timestamp = coin_info.difficulty_timestamp;
+            latest_difficulty = coin_info.difficulty;
+        }
 
     cleanup:
         // Rest the read_bytes of responses so it can be used again next loop.
@@ -351,11 +359,17 @@ int main(int argc, char** argv) {
             goto cleanup;
         }
 
-        if(latest_coin_timestamp < coin_info.coin_id_timestamp)
+        if (latest_coin_timestamp < coin_info.coin_id_timestamp) {
             latest_coin_timestamp = coin_info.coin_id_timestamp;
+        }
+
+        if (latest_difficulty_timestamp < coin_info.difficulty_timestamp) {
+            latest_difficulty_timestamp = coin_info.difficulty_timestamp;
+            latest_difficulty = coin_info.difficulty;
+        }
         
         memcpy(hash_start + CPEN_LEN, coin_info.coin_id, PREVIOUS_HASH_LEN);
-        coin_blob = cuda_mine_coin(hash_start, id, CPEN_LEN + PREVIOUS_HASH_LEN, ID_LEN, coin_info.difficulty, &latest_coin_timestamp);
+        coin_blob = cuda_mine_coin(hash_start, id, CPEN_LEN + PREVIOUS_HASH_LEN, ID_LEN, &latest_difficulty, &latest_coin_timestamp);
         if (coin_blob < 0)
             goto cleanup;
 
