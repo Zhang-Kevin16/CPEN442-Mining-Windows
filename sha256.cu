@@ -40,7 +40,7 @@ typedef struct {
 /****************************** MACROS ******************************/
 #define SHA256_HASH_SIZE 32            // SHA256 outputs a 32 byte digest
 #define SHA256_BLOCK_SIZE 64
-#define ID_SIZE 11
+#define ID_SIZE 64
 #define NUM_BLOCKS 8192
 #define NUM_THREADS 256
 
@@ -304,7 +304,9 @@ extern "C" {
 
 			// Check if coin is stale;
 			if (*latest_timestamp > timestamp) {
+#ifdef DEBUG
 				printf("Coin is stale. Ending iteration\n");
+#endif
 				ret = -1;
 				goto end;
 			}

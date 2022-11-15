@@ -20,7 +20,7 @@
 #define SHA256_BLOCK_SIZE 64
 #define CPEN_LEN 17
 #define PREVIOUS_HASH_LEN 64
-#define ID_LEN 11
+#define ID_LEN 64
 #define BASE64_LEN 12
 #define MAX_RESPONSE_LEN 1024
 #define LAST_COIN 0
@@ -262,8 +262,7 @@ void poll_coin(struct thread_context_t* context) {
 int main(int argc, char** argv) {
     coin_info_t coin_info;
     const unsigned char cpen[] = "CPEN 442 Coin2022";
-    unsigned char previous_hash[SHA256_HASH_SIZE*2] = "a9c1ae3f4fc29d0be9113a42090a5ef9fdef93f5ec4777a008873972e60bb532";
-    const unsigned char id[] = "free-vbucks";
+    const unsigned char id[] = "a75f416ae2ea778d07c5a7d93cb2881eea9ea4d23c331c9b80c89a8ce6720daf";
     long long coin_blob;
     unsigned char base64_coin_blob[BASE64_LEN + 1];
     unsigned char* base64_ptr;
@@ -277,6 +276,7 @@ int main(int argc, char** argv) {
 
     srand(time(NULL));
     
+    printf("Creating CURL handlers\n");
     // Three easy handlers. First one is to last_coin. Second is to difficulty. Third is to verify.
     CURL* curl_handlers[3];
     for (int i = 0; i < 3; i++) {
@@ -304,8 +304,10 @@ int main(int argc, char** argv) {
     int proxy_count = 0;
     
     if (argc > 2) {
+        printf("Opening proxy file\n");
         FILE* fp = fopen(argv[2], "r");
         if (fp) {
+            printf("Reading proxy file\n");
             size_t line_len;
             unsigned char* line = malloc(50);
 
@@ -318,21 +320,26 @@ int main(int argc, char** argv) {
             }
             fclose(fp);
         }
+        else {
+            printf("Error openning proxy file\n");
+        }
     }
 
     set_curl_opts(curl_handlers, responses, argv[1], proxy_count);
 
+    printf("Creating polling thread\n");
     struct thread_context_t* thread_context = malloc(sizeof(struct thread_context_t));
     thread_context->proxies = proxies;
     thread_context->proxy_count = proxy_count;
     thread_context->verify_url = argv[1];
     thrd_t t;
     thrd_create(&t, poll_coin, thread_context);
-
+    
+    printf("Start mining\n");
     while (1) {
 
         // Set proxy if available.
-        int proxy_idx;
+        int proxy_idx = -1;
         if (proxy_count) {
             proxy_idx = rand() % proxy_count;
             for (int i = 0; i < 3; i++) {
