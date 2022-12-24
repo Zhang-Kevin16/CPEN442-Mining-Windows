@@ -1,5 +1,5 @@
 # Introduction
-A program that mines CPEN442 coin. It uses CUDA to compute SHA256 hashes and then sends the computed coin blob to the server.
+A program that mines CPEN442 coin. It uses CUDA to compute SHA256 hashes and then sends the computed coin blob to the server. See https://blogs.ubc.ca/cpen442/assignments/coin-mining-contest/ for details
 
 # Requirements
 A NVIDIA GPU.
